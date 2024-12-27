@@ -154,13 +154,20 @@ input, select, textarea {
         </select>
         <input type="number" id="fontSize" value="16" min="8" max="72" onchange="updateFont()">
         <textarea id="content" rows="10" placeholder="Write your ebook content here..."></textarea>
+        <button onclick="addPageBreak()">Add Page Break</button>
+        <button onclick="generateTableOfContents()">Generate Table of Contents</button>
+        <p>Word Count: <span id="wordCount">0</span></p>
+      </div>
+
+      <div class="tool-section">
+        <h3>Chapter Management</h3>
+        <button onclick="addChapter()">Add Chapter</button>
+        <button onclick="addSection()">Add Section</button>
       </div>
 
       <div class="tool-section">
         <h3>Export</h3>
-        <button class="download-btn" onclick="downloadTxt()">Download as TXT</button>
-        <button class="download-btn" onclick="downloadDoc()">Download as DOCX</button>
-        <button class="download-btn" onclick="downloadPdf()">Download as PDF</button>
+        <button class="download-btn" onclick="downloadEbook()">Download Ebook</button>
       </div>
     </div>
   </div>
@@ -192,51 +199,46 @@ function updateFont() {
   content.style.fontSize = document.getElementById('fontSize').value + 'px';
 }
 
-function downloadTxt() {
-  const content = document.getElementById('content').value;
-  const title = document.getElementById('coverTitle').value || 'ebook';
-  const blob = new Blob([content], { type: 'text/plain' });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${title}.txt`;
-  a.click();
-  window.URL.revokeObjectURL(url);
+function addPageBreak() {
+  const content = document.getElementById('content');
+  content.value += '\n--- Page Break ---\n';
+  updateWordCount();
 }
 
-async function downloadDoc() {
+function generateTableOfContents() {
   const content = document.getElementById('content').value;
-  const title = document.getElementById('coverTitle').value || 'ebook';
-  
-  // Create document with window.docx namespace
-  const doc = new window.docx.Document({
-    sections: [{
-      properties: {},
-      children: [
-        new window.docx.Paragraph({
-          children: [new window.docx.TextRun(content)],
-        }),
-      ],
-    }],
-  });
-
-  const blob = await window.docx.Packer.toBlob(doc);
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${title}.docx`;
-  a.click();
-  window.URL.revokeObjectURL(url);
+  const titles = content.match(/# .+/g) || [];
+  const toc = titles.map((title, index) => `${index + 1}. ${title.replace('# ', '')}`).join('\n');
+  alert(`Table of Contents:\n\n${toc}`);
 }
 
-function downloadPdf() {
+function addChapter() {
+  const content = document.getElementById('content');
+  content.value += '\n# New Chapter\n';
+  updateWordCount();
+}
+
+function addSection() {
+  const content = document.getElementById('content');
+  content.value += '\n## New Section\n';
+  updateWordCount();
+}
+
+function updateWordCount() {
   const content = document.getElementById('content').value;
-  const title = document.getElementById('coverTitle').value || 'ebook';
-  
+  const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
+  document.getElementById('wordCount').innerText = wordCount;
+}
+
+function downloadEbook() {
+  const coverTitle = document.getElementById('coverTitle').value || 'ebook';
+  const coverAuthor = document.getElementById('coverAuthor').value || 'Author';
+  const content = document.getElementById('content').value;
+
   const element = document.createElement('div');
   element.innerHTML = `
-    <h1>${document.getElementById('coverTitle').value}</h1>
-    <h2>By ${document.getElementById('coverAuthor').value}</h2>
+    <h1>${coverTitle}</h1>
+    <h2>By ${coverAuthor}</h2>
     <div style="font-family: ${document.getElementById('fontFamily').value}; 
                 font-size: ${document.getElementById('fontSize').value}px">
       ${content.replace(/\n/g, '<br>')}
@@ -246,7 +248,7 @@ function downloadPdf() {
   html2pdf()
     .set({
       margin: 1,
-      filename: `${title}.pdf`,
+      filename: `${coverTitle}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2 },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
@@ -255,7 +257,8 @@ function downloadPdf() {
     .save();
 }
 
-// Initialize font settings
+// Initialize settings
 updateFont();
+updateWordCount();
 </script>
 </body></html>
