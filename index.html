@@ -1,0 +1,261 @@
+<html><head><base href="." target="_blank"/>
+<title>Ebook Creator with Chat</title>
+<style>
+:root {
+  --dark-bg: #1a1a1a;
+  --dark-text: #ffffff;
+  --accent: #4a90e2;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--dark-bg);
+  color: var(--dark-text);
+  font-family: 'Arial', sans-serif;
+}
+
+.container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.column {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.external-content {
+  height: 100%;
+}
+
+.external-content iframe {
+  width: 100%;
+  height: 90vh;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+
+.ebook-tools {
+  background-color: #2a2a2a;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.tool-section {
+  margin-bottom: 20px;
+}
+
+.tool-section h3 {
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 8px;
+  margin: 5px 0;
+  background-color: #333;
+  border: 1px solid #444;
+  color: var(--dark-text);
+  border-radius: 4px;
+}
+
+.cover-preview {
+  width: 100%;
+  max-width: 300px;
+  height: 400px;
+  margin: 10px 0;
+  border: 2px dashed #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.cover-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.cover-text {
+  position: absolute;
+  text-align: center;
+  width: 90%;
+  word-wrap: break-word;
+}
+
+.download-btn {
+  background-color: var(--accent);
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin: 5px;
+  transition: background-color 0.3s;
+}
+
+.download-btn:hover {
+  background-color: #357abd;
+}
+
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+  }
+  
+  .column {
+    width: 100%;
+  }
+  
+  .external-content iframe {
+    height: 50vh;
+  }
+}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
+</head>
+<body>
+
+<div class="container">
+  <div class="column">
+    <div class="external-content">
+      <iframe src="https://veamoschat.netlify.app/" title="AppAI for All"></iframe>
+    </div>
+  </div>
+  
+  <div class="column">
+    <div class="ebook-tools">
+      <div class="tool-section">
+        <h3>Cover Creator</h3>
+        <input type="file" id="coverImage" accept="image/*" onchange="previewCover(event)">
+        <input type="text" id="coverTitle" placeholder="Book Title" oninput="updateCoverText()">
+        <input type="text" id="coverAuthor" placeholder="Author Name" oninput="updateCoverText()">
+        <div class="cover-preview" id="coverPreview">
+          <div class="cover-text">
+            <h2 id="previewTitle"></h2>
+            <p id="previewAuthor"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tool-section">
+        <h3>Content Editor</h3>
+        <select id="fontFamily" onchange="updateFont()">
+          <option value="Arial">Arial</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Courier New">Courier New</option>
+          <option value="Georgia">Georgia</option>
+        </select>
+        <input type="number" id="fontSize" value="16" min="8" max="72" onchange="updateFont()">
+        <textarea id="content" rows="10" placeholder="Write your ebook content here..."></textarea>
+      </div>
+
+      <div class="tool-section">
+        <h3>Export</h3>
+        <button class="download-btn" onclick="downloadTxt()">Download as TXT</button>
+        <button class="download-btn" onclick="downloadDoc()">Download as DOCX</button>
+        <button class="download-btn" onclick="downloadPdf()">Download as PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function previewCover(event) {
+  const preview = document.getElementById('coverPreview');
+  const file = event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      preview.style.backgroundImage = `url(${e.target.result})`;
+      preview.style.backgroundSize = 'cover';
+      preview.style.backgroundPosition = 'center';
+    }
+    reader.readAsDataURL(file);
+  }
+}
+
+function updateCoverText() {
+  document.getElementById('previewTitle').innerText = document.getElementById('coverTitle').value;
+  document.getElementById('previewAuthor').innerText = document.getElementById('coverAuthor').value;
+}
+
+function updateFont() {
+  const content = document.getElementById('content');
+  content.style.fontFamily = document.getElementById('fontFamily').value;
+  content.style.fontSize = document.getElementById('fontSize').value + 'px';
+}
+
+function downloadTxt() {
+  const content = document.getElementById('content').value;
+  const title = document.getElementById('coverTitle').value || 'ebook';
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${title}.txt`;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+async function downloadDoc() {
+  const content = document.getElementById('content').value;
+  const title = document.getElementById('coverTitle').value || 'ebook';
+  
+  // Create document with window.docx namespace
+  const doc = new window.docx.Document({
+    sections: [{
+      properties: {},
+      children: [
+        new window.docx.Paragraph({
+          children: [new window.docx.TextRun(content)],
+        }),
+      ],
+    }],
+  });
+
+  const blob = await window.docx.Packer.toBlob(doc);
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${title}.docx`;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+function downloadPdf() {
+  const content = document.getElementById('content').value;
+  const title = document.getElementById('coverTitle').value || 'ebook';
+  
+  const element = document.createElement('div');
+  element.innerHTML = `
+    <h1>${document.getElementById('coverTitle').value}</h1>
+    <h2>By ${document.getElementById('coverAuthor').value}</h2>
+    <div style="font-family: ${document.getElementById('fontFamily').value}; 
+                font-size: ${document.getElementById('fontSize').value}px">
+      ${content.replace(/\n/g, '<br>')}
+    </div>
+  `;
+
+  html2pdf()
+    .set({
+      margin: 1,
+      filename: `${title}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    })
+    .from(element)
+    .save();
+}
+
+// Initialize font settings
+updateFont();
+</script>
+</body></html>
