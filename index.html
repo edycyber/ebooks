@@ -154,14 +154,22 @@ input, select, textarea {
         </select>
         <input type="number" id="fontSize" value="16" min="8" max="72" onchange="updateFont()">
         <textarea id="content" rows="10" placeholder="Write your ebook content here..."></textarea>
+        <button onclick="addPageBreak()">Add Page Break</button>
+        <button onclick="generateTableOfContents()">Generate Table of Contents</button>
         <p>Word Count: <span id="wordCount">0</span></p>
       </div>
 
       <div class="tool-section">
+        <h3>Chapter Management</h3>
+        <button onclick="addChapter()">Add Chapter</button>
+        <button onclick="addSection()">Add Section</button>
+      </div>
+
+      <div class="tool-section">
         <h3>Export</h3>
-        <button class="download-btn" onclick="downloadTxt()">Download as TXT</button>
-        <button class="download-btn" onclick="downloadDoc()">Download as DOCX</button>
-        <button class="download-btn" onclick="downloadPdf()">Download as PDF</button>
+        <button class="download-btn" onclick="downloadCombined('txt')">Download as TXT</button>
+        <button class="download-btn" onclick="downloadCombined('docx')">Download as DOCX</button>
+        <button class="download-btn" onclick="downloadCombined('pdf')">Download as PDF</button>
       </div>
     </div>
   </div>
@@ -193,75 +201,101 @@ function updateFont() {
   content.style.fontSize = document.getElementById('fontSize').value + 'px';
 }
 
+function addPageBreak() {
+  const content = document.getElementById('content');
+  content.value += '\n--- Page Break ---\n';
+  updateWordCount();
+}
+
+function generateTableOfContents() {
+  const content = document.getElementById('content').value;
+  const titles = content.match(/# .+/g) || [];
+  const toc = titles.map((title, index) => `${index + 1}. ${title.replace('# ', '')}`).join('\n');
+  alert(`Table of Contents:\n\n${toc}`);
+}
+
+function addChapter() {
+  const content = document.getElementById('content');
+  content.value += '\n# New Chapter\n';
+  updateWordCount();
+}
+
+function addSection() {
+  const content = document.getElementById('content');
+  content.value += '\n## New Section\n';
+  updateWordCount();
+}
+
 function updateWordCount() {
   const content = document.getElementById('content').value;
   const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
   document.getElementById('wordCount').innerText = wordCount;
 }
 
-function downloadTxt() {
-  const content = document.getElementById('content').value;
-  const title = document.getElementById('coverTitle').value || 'ebook';
-  const blob = new Blob([content], { type: 'text/plain' });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${title}.txt`;
-  a.click();
-  window.URL.revokeObjectURL(url);
-}
-
-async function downloadDoc() {
-  const content = document.getElementById('content').value;
-  const title = document.getElementById('coverTitle').value || 'ebook';
-
-  const doc = new window.docx.Document({
-    sections: [
-      {
-        properties: {},
-        children: [
-          new window.docx.Paragraph({
-            children: [new window.docx.TextRun(content)],
-          }),
-        ],
-      },
-    ],
-  });
-
-  const blob = await window.docx.Packer.toBlob(doc);
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${title}.docx`;
-  a.click();
-  window.URL.revokeObjectURL(url);
-}
-
-function downloadPdf() {
+function downloadCombined(format) {
   const coverTitle = document.getElementById('coverTitle').value || 'ebook';
   const coverAuthor = document.getElementById('coverAuthor').value || 'Author';
   const content = document.getElementById('content').value;
 
-  const element = document.createElement('div');
-  element.innerHTML = `
-    <h1>${coverTitle}</h1>
-    <h2>By ${coverAuthor}</h2>
-    <div style="font-family: ${document.getElementById('fontFamily').value}; 
-                font-size: ${document.getElementById('fontSize').value}px">
-      ${content.replace(/\n/g, '<br>')}
-    </div>
-  `;
+  if (format === 'txt') {
+    const combinedContent = `${coverTitle}\nBy ${coverAuthor}\n\n${content}`;
+    const blob = new Blob([combinedContent], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${coverTitle}.txt`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  } else if (format === 'docx') {
+    const doc = new window.docx.Document({
+      sections: [
+        {
+          properties: {},
+          children: [
+            new window.docx.Paragraph({
+              children: [new window.docx.TextRun(coverTitle)],
+            }),
+            new window.docx.Paragraph({
+              children: [new window.docx.TextRun(`By ${coverAuthor}`)],
+            }),
+            new window.docx.Paragraph({
+              children: [new window.docx.TextRun(content)],
+            }),
+          ],
+        },
+      ],
+    });
 
-  html2pdf()
-    .set({
-      margin: 1,
-      filename: `${coverTitle}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-    })
-    .from(element)
-    .save();
+    window.docx.Packer.toBlob(doc).then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${coverTitle}.docx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    });
+  } else if (format === 'pdf') {
+    const element = document.createElement('div');
+    element.innerHTML = `
+      <h1>${coverTitle}</h1>
+      <h2>By ${coverAuthor}</h2>
+      <div style="font-family: ${document.getElementById('fontFamily').value}; 
+                  font-size: ${document.getElementById('fontSize').value}px">
+        ${content.replace(/\n/g, '<br>')}
+      </div>
+    `;
+
+    html2pdf()
+      .set({
+        margin: 1,
+        filename: `${coverTitle}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      })
+      .from(element)
+      .save();
+  }
 }
 
 // Initialize settings
